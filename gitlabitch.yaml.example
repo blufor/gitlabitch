@@ -1,0 +1,18 @@
+---
+#
+# This file must reside in /etc/gitlabitch.yaml !
+#
+projects:
+  # Project name, will become the URI /puppet
+  puppet:
+    # Directory for branch dirs
+    basedir: /etc/puppet/environments
+    # System user, who should do the work (using his SSH key and fs write permissions)
+    user: puppet
+    # Which branches should be mirrored?
+    #
+    # If branch is defined as string, instead of array, the named branch will be 
+    # mirrorred directly to basedir.
+    branches: [ "master" ]
+    # Overriding master branch name (convinient for puppet branch-based environments).
+    master_name: production
