@@ -5,6 +5,7 @@ require 'git'
 require 'etc'
 require 'json'
 require 'yaml'
+require 'syslog/logger'
 
 $0 = 'gitlabitch [...]'
 
@@ -30,6 +31,8 @@ module GitLaBitch
       resource "/#{project}" do
         desc "GitLaBitch #{project} Webhook"
 
+        logger Syslog::Logger.new('gitlabitch', Syslog::LOG_DAEMON)
+
         helpers do
           def logger
             Server.logger
@@ -37,6 +40,7 @@ module GitLaBitch
         end
 
         post do
+          logger.info "Request for #{project} from #{env['REMOTE_ADDR']}"
           base_dir = $config["projects"][project]["basedir"] + "/"
           user = $config["projects"][project]["user"]
           serviced_branches = $config["projects"][project]["branches"]        
@@ -69,34 +73,33 @@ module GitLaBitch
               branch_dir = ''
             end
 
-            @pid = nil
+            logger.info "#{project}: Forking process"
 
             Process.fork do
-              @pid = Process.pid
-              logger.info "#{project}[#{@pid}]: Forked process"
               # setuid to configured user (uses his ssh key and fs perms!)
               Process.uid = Etc.getpwnam(user).uid
-              logger.info "#{project}[#{@pid}]: SetUID of child process to #{Process.uid}"
+              logger.info "#{project}: SetUID of child process to #{user}(#{Process.uid})"
               # if the branch isn't mirrored yet, create it
               if ! File.directory?(base_dir + branch_dir) then
-                logger.info "#{project}[#{@pid}]: Creating nonexisting mirror in #{base_dir+branch_dir}"
+                logger.info "#{project}: Creating nonexisting mirror in #{base_dir+branch_dir}"
                 repo = Git.init(base_dir + branch_dir)
                 repo.add_remote branch, repo_url, :track => branch
                 repo.remote(branch).fetch
               else
-                logger.info "#{project}[#{@pid}]: Opening existing mirror in #{base_dir+branch_dir}"
+                logger.info "#{project}: Opening existing mirror in #{base_dir+branch_dir}"
                 repo = Git.open(base_dir + branch_dir)
               end
-              logger.info "#{project}[#{@pid}]: Syncing from git #{repo_url} branch #{branch}"
+              logger.info "#{project}: Syncing #{repo_url} branch #{branch}"
               if repo.pull branch, branch            
-                logger.info "#{project}[#{@pid}]: Synced"
+                logger.info "#{project}: Synced"
               else
-                logger.info "#{project}[#{@pid}]: Already in sync"
+                logger.info "#{project}: Already in sync"
               end
             end
             Process.wait
             logger.info "#{project}: Child finished"
           else
+            logger.info "#{project}: Branch #{branch} not mirrorred"
             error! "No Content", 204
           end
         end
