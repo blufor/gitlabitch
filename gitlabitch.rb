@@ -31,7 +31,7 @@ module GitLaBitch
       resource "/#{project}" do
         desc "GitLaBitch #{project} Webhook"
 
-        logger Syslog::Logger.new('gitlabitch', Syslog::LOG_DAEMON)
+        logger Syslog::Logger.new('gitlabitch')
 
         helpers do
           def logger
